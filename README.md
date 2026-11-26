@@ -31,7 +31,7 @@ node serve.ts
 - **Day/night legs** — dusk and night change the light, the fog and what the runway lamps mean.
 - **Instruments that look flown**: altitude, speed, heading, vertical speed, throttle, fuel and damage gauges, a compass strip, an artificial horizon, and a lit cockpit view.
 - **Sounds** synthesized with WebAudio — engine hum follows the throttle, wind follows the speed, chimes mark rings and landings. No audio files.
-- **Three.js** vendored as `game/vendor/three/three.module.min.js` (0.187.0); everything else is original code written for this entry.
+- **Three.js** vendored as `game/vendor/three/three.module.min.js` (0.160.0, single-file minified build); everything else is original code written for this entry.
 
 ## Entry
 

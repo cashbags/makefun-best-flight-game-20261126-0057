@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emberwing Air — bush-pilot island hops across the volcanic Kaldera archipelago</title>
+<style>
+  :root {
+    --ink: #f2e8d5;
+    --muted: #b8ad94;
+    --amber: #ffb020;
+    --glass: rgba(12, 18, 26, 0.72);
+    --line: rgba(255, 176, 32, 0.45);
+    --danger: #ff5a4d;
+    --good: #58d68d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a1220; color: var(--ink); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---- HUD ---- */
+  #hud { position: fixed; inset: 0; pointer-events: none; display: none; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+  .panel { position: absolute; background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; box-shadow: 0 0 18px rgba(255, 176, 32, 0.15); backdrop-filter: blur(2px); }
+  .panel .label { font-size: 10px; letter-spacing: 2px; color: var(--muted); }
+  .panel .value { font-size: 26px; font-weight: 700; color: var(--ink); text-shadow: 0 0 12px rgba(255, 176, 32, 0.55); }
+  .panel .unit { font-size: 11px; color: var(--muted); }
+  #hud-alt-box { top: 14px; left: 14px; }
+  #hud-spd-box { top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+  #hud-hdg-box { top: 14px; right: 14px; text-align: right; }
+  #hud-vsi-box { top: 108px; left: 14px; }
+  #hud-vsi-box .value { font-size: 18px; }
+  #hud-thr-box { top: 108px; right: 14px; text-align: right; }
+  #hud-thr-box .value { font-size: 18px; }
+  #hud-mission-box { left: 14px; bottom: 14px; max-width: 380px; }
+  #hud-mission-box .value { font-size: 16px; }
+  #hud-objective { font-size: 13px; color: var(--amber); margin-top: 2px; }
+  #hud-target { font-size: 13px; color: var(--ink); margin-top: 4px; }
+  #hud-gauges { right: 14px; bottom: 14px; width: 210px; }
+  .gauge-row { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; }
+  .gauge-track { height: 8px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden; margin: 2px 0 6px; }
+  .gauge-fill { height: 100%; background: var(--good); border-radius: 4px; }
+  .gauge-fill.low { background: var(--amber); }
+  .gauge-fill.bad { background: var(--danger); }
+  #hud-weather-row { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  #hud-score-row { font-size: 12px; margin-top: 2px; }
+  #hud-score-row b { color: var(--amber); }
+  #hud-gear { font-size: 11px; color: var(--muted); }
+  #hud-warn { position: absolute; top: 190px; left: 50%; transform: translateX(-50%); background: rgba(60, 8, 8, 0.85); border: 1px solid var(--danger); color: #ffd2cc; padding: 6px 14px; border-radius: 6px; font-size: 14px; font-weight: 700; display: none; letter-spacing: 1px; }
+  #horizon-wrap { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+  #horizon-wrap .label { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-align: center; }
+  #banner { position: absolute; top: 26%; left: 50%; transform: translateX(-50%); text-align: center; display: none; transition: opacity 0.8s; }
+  #banner.fade { opacity: 0; }
+  #banner-title { font-size: 34px; font-weight: 800; color: var(--ink); text-shadow: 0 0 22px rgba(255, 176, 32, 0.8), 0 2px 6px rgba(0,0,0,0.8); }
+  #banner-sub { font-size: 15px; color: var(--muted); text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+  /* Cockpit mode: the horizon cluster grows into a lit instrument panel. */
+  body.cockpit #horizon-wrap { padding: 10px; box-shadow: 0 0 26px rgba(255, 176, 32, 0.35); }
+  body.cockpit #horizon { width: 190px; height: 190px; }
+  body.cockpit #hud-alt-box, body.cockpit #hud-spd-box, body.cockpit #hud-hdg-box { box-shadow: 0 0 26px rgba(255, 176, 32, 0.4); }
+
+  /* ---- Screens ---- */
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(6, 10, 18, 0.72); z-index: 5; }
+  .screen-card { width: min(860px, 94vw); max-height: 92vh; overflow-y: auto; background: rgba(10, 16, 26, 0.94); border: 1px solid var(--line); border-radius: 14px; padding: 26px 30px; box-shadow: 0 0 60px rgba(0,0,0,0.6); }
+  .screen-card h1 { margin: 0 0 4px; font-size: 40px; letter-spacing: 1px; color: var(--amber); text-shadow: 0 0 24px rgba(255, 176, 32, 0.5); }
+  .screen-card h2 { margin: 0 0 8px; font-size: 28px; color: var(--amber); }
+  .screen-card p { color: var(--muted); line-height: 1.5; margin: 6px 0 14px; }
+  .screen-card .tagline { font-size: 15px; color: var(--ink); }
+  .counts { color: var(--amber); font-weight: 700; }
+  #mission-list, #aircraft-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+  .mission-card, .aircraft-card { display: flex; flex-direction: column; gap: 4px; text-align: left; background: rgba(255, 176, 32, 0.07); border: 1px solid rgba(255, 176, 32, 0.3); border-radius: 10px; padding: 12px 14px; color: var(--ink); cursor: pointer; font-family: inherit; }
+  .mission-card:hover, .aircraft-card:hover { background: rgba(255, 176, 32, 0.16); }
+  .aircraft-card.picked { border-color: var(--amber); background: rgba(255, 176, 32, 0.22); }
+  .mission-card b, .aircraft-card b { font-size: 15px; color: var(--amber); }
+  .mission-card span, .aircraft-card span { font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .mission-card i, .aircraft-card i { font-size: 11px; color: var(--ink); font-style: normal; opacity: 0.75; }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+  button.big { background: var(--amber); color: #1a1206; border: none; border-radius: 8px; padding: 12px 26px; font-size: 16px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  button.big:hover { filter: brightness(1.1); }
+  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 12px 20px; font-size: 15px; cursor: pointer; font-family: inherit; }
+  button.ghost:hover { background: rgba(255, 176, 32, 0.12); }
+  .keys { font-size: 13px; color: var(--muted); line-height: 1.9; }
+  .keys b { color: var(--ink); background: rgba(255,255,255,0.1); border-radius: 4px; padding: 1px 7px; font-family: ui-monospace, monospace; }
+  .big-score { font-size: 22px; color: var(--amber); font-weight: 700; margin: 10px 0; }
+  #complete-log, #crash-cause { font-size: 15px; color: var(--ink); line-height: 1.5; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Emberwing Air: fly a bush plane across the volcanic Kaldera archipelago"></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud">
+  <div class="panel" id="hud-alt-box"><div class="label">ALTITUDE</div><div class="value"><span id="hud-alt">0 m</span></div><div class="unit">above sea level</div></div>
+  <div class="panel" id="hud-spd-box"><div class="label">AIRSPEED</div><div class="value"><span id="hud-spd">0 km/h</span></div><div class="unit">VSI <span id="hud-vsi">+0.0 m/s</span></div></div>
+  <div class="panel" id="hud-hdg-box"><div class="label">HEADING</div><div class="value"><span id="hud-hdg">000°</span></div><div class="unit"><span id="hud-gear">GEAR DOWN</span></div></div>
+  <div class="panel" id="hud-vsi-box"><div class="label">THROTTLE</div><div class="value"><span id="hud-thr">0%</span></div></div>
+  <div class="panel" id="hud-thr-box"><div class="label">WEATHER</div><div class="value" style="font-size:18px"><span id="hud-weather">Clear Trades</span></div><div class="unit">wind <span id="hud-wind">0 km/h</span></div></div>
+  <div id="hud-warn"></div>
+  <div id="horizon-wrap"><div class="label">ATTITUDE</div><canvas id="horizon" width="140" height="140"></canvas></div>
+  <div class="panel" id="hud-mission-box">
+    <div class="label">MISSION — <span id="hud-mission">First Hop</span></div>
+    <div id="hud-objective"></div>
+    <div id="hud-target"></div>
+  </div>
+  <div class="panel" id="hud-gauges">
+    <div class="gauge-row"><span>FUEL</span><span id="hud-fuel">100%</span></div>
+    <div class="gauge-track"><div class="gauge-fill" id="fuel-bar" style="width:100%"></div></div>
+    <div class="gauge-row"><span>DAMAGE</span><span id="hud-dmg">0%</span></div>
+    <div class="gauge-track"><div class="gauge-fill" id="dmg-bar" style="width:0%"></div></div>
+    <div id="hud-weather-row">Emberwing Air · Kaldera archipelago</div>
+    <div id="hud-score-row">SCORE <b id="hud-score">0</b></div>
+  </div>
+  <div id="banner"><div id="banner-title"></div><div id="banner-sub"></div></div>
+</div>
+
+<div class="screen" id="screen-title">
+  <div class="screen-card">
+    <h1>EMBERWING AIR</h1>
+    <p class="tagline">Bush-pilot island hops across the volcanic Kaldera archipelago — <span class="counts">12 islands, 9 missions, 5 aircraft, 3 weather fronts, fuel + damage, 8 rings, day/night legs</span>.</p>
+    <p>Fly the mail, rescue the lighthouse keeper, race eight rings over the inner sea, and survey three live craters. Throttle discipline pays; the sea does not forgive a stall. Pick a mission:</p>
+    <div id="mission-list"></div>
+    <p class="keys"><b>W</b>/<b>S</b> throttle &nbsp; <b>↑</b>/<b>↓</b> pitch &nbsp; <b>←</b>/<b>→</b> or <b>A</b>/<b>D</b> bank &amp; turn &nbsp; <b>G</b> gear &nbsp; <b>C</b> cockpit view &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute &nbsp; drag mouse to look</p>
+  </div>
+</div>
+
+<div class="screen" id="screen-briefing">
+  <div class="screen-card">
+    <h2 id="briefing-title">First Hop</h2>
+    <p id="briefing-text"></p>
+    <p id="briefing-meta"></p>
+    <div id="aircraft-list"></div>
+    <div class="btn-row">
+      <button class="big" id="fly-button">Fly this mission</button>
+      <button class="ghost" id="back-button">Back to missions</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-pause">
+  <div class="screen-card">
+    <h2>Paused</h2>
+    <p>Engines idling over the Kaldera. The islands will wait.</p>
+    <div class="btn-row">
+      <button class="big" id="resume-button">Resume flying</button>
+      <button class="ghost" id="menu-button">Missions</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-complete">
+  <div class="screen-card">
+    <h2>Mission complete</h2>
+    <p id="complete-log"></p>
+    <div class="big-score" id="complete-score"></div>
+    <p>Emberwing Air flies on — nine missions, one archipelago, no two sorties alike.</p>
+    <div class="btn-row">
+      <button class="big" id="again-button">Fly it again</button>
+      <button class="ghost" id="menu-button-2">Missions</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="screen-crash">
+  <div class="screen-card">
+    <h2>Down in the Kaldera</h2>
+    <p id="crash-cause"></p>
+    <div class="big-score" id="crash-score"></div>
+    <div class="btn-row">
+      <button class="big" id="retry-button">Try again</button>
+      <button class="ghost" id="menu-button-3">Missions</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
